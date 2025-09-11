@@ -1,22 +1,24 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { MSGraphClientV3 } from '@microsoft/sp-http';
 
+/** ← nombres EXACTOS de tus columnas */
 export type ListaPruebaFields = {
-  Area?: string;           // ajusta a tus columnas reales
-  Titulo?: string;
-  DetalleHtml?: string;
-  ImagenesJson?: string;        // opcional: JSON con URLs
-  ImagenesSeparadas?: string;   // opcional: "url1;url2"
+  SectorGeneral?: string;    // Texto
+  AreaNovedad?: string;      // Texto
+  TituloNovedad?: string;    // Texto
+  DetalleNovedad?: string;   // Texto enriquecido (HTML)
+  Resumen?: string;          // (opcional)
+  // "Datos adjuntos" se obtiene vía driveItem/children (Graph), no aparece en fields
 };
 
 export type NovedadItem = {
   tituloNovedad: string;
   detalleNovedad: string;     // HTML
-  imagenesNovedad: string[];  // URLs
+  imagenesNovedad: string[];  // URLs directas de los adjuntos
 };
 
 export type NovedadesData = {
-  area: string;
+  area: string; // SectorGeneral más frecuente
   novedad: Array<{ areaNovedad: string; items: NovedadItem[] }>;
 };
 
@@ -31,47 +33,63 @@ export class GraphListService {
     this.siteId = this.buildGraphSiteId();
   }
 
+  /** Trae y mapea: agrupa por AreaNovedad y setea SectorGeneral (más frecuente) */
   public async fetchNovedades(listDisplayName: string): Promise<NovedadesData> {
     const items = await this.getItems(listDisplayName);
     const list  = await this.getList(listDisplayName);
 
-    const salida: NovedadItem[] = [];
+    // Group by AreaNovedad
+    const groups = new Map<string, NovedadItem[]>();
+
     for (const it of items) {
       const f = (it.fields || {}) as ListaPruebaFields;
+
+      const areaNovedad = (f.AreaNovedad || 'General').trim();
+      const titulo = (f.TituloNovedad || '(Sin título)').trim();
+      const detalleHtml = f.DetalleNovedad || '';
+
       const urls: string[] = [];
 
-      if (f.ImagenesJson) {
-        try {
-          const arr = JSON.parse(f.ImagenesJson);
-          if (Array.isArray(arr)) arr.forEach(u => { if (typeof u === 'string' && u) urls.push(u); });
-        } catch {}
-      }
-      if (f.ImagenesSeparadas) {
-        f.ImagenesSeparadas.split(';').map(s => s.trim()).filter(Boolean).forEach(u => urls.push(u));
-      }
-
+      // Adjuntos del ítem (carpeta del drive del item)
       if (list?.id) {
         try {
           const resp = await this.client
             .api(`/sites/${this.siteId}/lists/${list.id}/items/${it.id}/driveItem/children`)
-            .select('name,@microsoft.graph.downloadUrl')
+            .select('name,@microsoft.graph.downloadUrl,file')
             .get();
-          (resp?.value ?? []).forEach((ch: any) => {
+
+          const files = resp?.value ?? [];
+          for (const ch of files) {
             const dl = ch['@microsoft.graph.downloadUrl'];
             if (dl) urls.push(dl);
-          });
-        } catch {}
+          }
+        } catch {/* sin adjuntos o sin permisos */}
       }
 
-      salida.push({
-        tituloNovedad: (f.Titulo || '(Sin título)').trim(),
-        detalleNovedad: f.DetalleHtml || '',
+      const arr = groups.get(areaNovedad) ?? [];
+      arr.push({
+        tituloNovedad: titulo,
+        detalleNovedad: detalleHtml,
         imagenesNovedad: Array.from(new Set(urls)),
       });
+      groups.set(areaNovedad, arr);
     }
 
-    const area = this.pickArea(items);
-    return { area, novedad: [{ areaNovedad: area || 'General', items: salida }] };
+    // SectorGeneral = más frecuente en la lista
+    const sectorGeneral = this.pickMostFrequent(
+      items.map((it) => (it.fields?.SectorGeneral ?? 'General').trim())
+    );
+
+    // Armar secciones [{ areaNovedad, items }]
+    const novedad = Array.from(groups.entries()).map(([areaNovedad, items]) => ({
+      areaNovedad,
+      items,
+    }));
+
+    // Ordenar por nombre de área (opcional)
+    novedad.sort((a, b) => a.areaNovedad.localeCompare(b.areaNovedad));
+
+    return { area: sectorGeneral, novedad };
   }
 
   /* -------------------- helpers -------------------- */
@@ -92,7 +110,9 @@ export class GraphListService {
     return match ? { id: match.id, name: match.displayName || match.name } : null;
   }
 
-  private async getItems(listDisplayName: string): Promise<Array<{ id: string; fields: ListaPruebaFields }>> {
+  private async getItems(
+    listDisplayName: string
+  ): Promise<Array<{ id: string; fields: ListaPruebaFields }>> {
     const list = await this.getList(listDisplayName);
     if (!list?.id) return [];
     const res = await this.client
@@ -103,12 +123,9 @@ export class GraphListService {
     return (res?.value ?? []) as any[];
   }
 
-  private pickArea(items: Array<{ fields: ListaPruebaFields }>): string {
+  private pickMostFrequent(values: string[]): string {
     const counts: Record<string, number> = {};
-    for (const it of items) {
-      const a = (it.fields?.Area ?? 'General').trim();
-      counts[a] = (counts[a] || 0) + 1;
-    }
+    for (const v of values) counts[v] = (counts[v] || 0) + 1;
     let best = 'General', max = -1;
     for (const [k, v] of Object.entries(counts)) if (v > max) { max = v; best = k; }
     return best;

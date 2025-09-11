@@ -18,7 +18,7 @@ type UseNovedadesArgs = {
 export function useNovedades({
   context,
   filename = DOCX_FILENAME,
-  listName = 'ListaPruebaGraph',
+  listName = 'Word',
   inputOverride,
 }: UseNovedadesArgs) {
   const [loading, setLoading] = useState(false);
