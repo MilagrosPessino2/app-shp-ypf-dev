@@ -1,26 +1,19 @@
 export type DimensionHW = { alto: number; ancho: number };
 
 export type ImagenOrdenada = {
-  data: ArrayBuffer;               // bytes en formato PNG.
-  dimension: DimensionHW;          // dimensiones REAJUSTADAS (px)
-  dimesionOriginal: { alto: number; ancho: number }; // dimensiones originales (px)
-  extension: 'image/png';               // devolvemos PNG 
+  data: ArrayBuffer;                    // bytes (PNG seguro)
+  dimension: DimensionHW;               // dimensiones REAJUSTADAS (px)
+  dimensionOriginal: { alto: number; ancho: number }; // dimensiones originales (px)
+  extension: 'image/png';
 };
 
 // Firma PNG: 89 50 4E 47 0D 0A 1A 0A
-//Comprueba si los primeros 8 bytes corresponden a la firma de PNG.
-//Sirve para asegurarse de que lo que generamos realmente es un PNG y no un formato camuflado.
 function looksLikePng(u8: Uint8Array): boolean {
   if (u8.byteLength < 8) return false;
   const sig = [0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A];
   for (let i = 0; i < sig.length; i++) if (u8[i] !== sig[i]) return false;
   return true;
 }
-
-
-//Crea una URL temporal con el Blob.
-//Carga la imagen en un <img> invisible para obtener su ancho y alto originales.
-//Libera la URL temporal después.
 
 async function readNaturalSizeFromBlob(blob: Blob): Promise<{ w: number; h: number }> {
   const url = URL.createObjectURL(blob);
@@ -36,12 +29,7 @@ async function readNaturalSizeFromBlob(blob: Blob): Promise<{ w: number; h: numb
   }
 }
 
-/* Devuelve un PNG (re-encodado) manteniendo tamaño y con clamp de seguridad */
-/*Carga la imagen original y la dibuja en un <canvas>.
-Escala la imagen si excede los 8000 px de ancho o alto.
-Vuelve a exportarla a un Blob PNG limpio.
-Devuelve ese PNG junto con las dimensiones finales. */
-
+/** Re-encodifica a PNG (clamp 8000px) para evitar incompatibilidades en Word */
 async function transcodeToPNG(blob: Blob): Promise<{ out: Blob; w: number; h: number }> {
   let { w, h } = await readNaturalSizeFromBlob(blob);
   if (!w || !h) throw new Error('Dimensiones inválidas');
@@ -75,19 +63,15 @@ async function transcodeToPNG(blob: Blob): Promise<{ out: Blob; w: number; h: nu
   }
 }
 
-/* garantiza PNG valido para Word */
-/*Descarga la imagen desde una URL.
-La transcodifica siempre a PNG seguro.
-Verifica que no esté vacía y que tenga firma PNG.
-Devuelve los bytes (ArrayBuffer), alto y ancho ajustados*/ 
-
+/** Descarga + convierte a PNG seguro; devuelve bytes + dimensiones */
 export async function loadImageOriginal(
   url: string
 ): Promise<{ data: ArrayBuffer; alto: number; ancho: number; extension: 'image/png' } | null> {
-  const res = await fetch(url);
+  // Incluir credenciales por si la URL requiere cookies (mismo origen/SharePoint)
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) return null;
 
-  let blob = await res.blob();
+  const blob = await res.blob();
   if (!blob.type?.startsWith('image/')) return null;
 
   let png: Blob, W = 0, H = 0;
@@ -104,7 +88,6 @@ export async function loadImageOriginal(
 
   return { data: ab, alto: H, ancho: W, extension: 'image/png' };
 }
-
 
 /* Comparador por alto ASC → ancho ASC */
 export function comparaImagenesPorAltoAncho(a: ImagenOrdenada, b: ImagenOrdenada): number {

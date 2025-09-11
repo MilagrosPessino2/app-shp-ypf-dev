@@ -61,7 +61,7 @@ async function buildSectionsAsync(
             const wrapper: ImagenOrdenada = {
               data: raw.data,
               dimension: { alto: height, ancho: width },
-              dimesionOriginal: { alto: raw.alto, ancho: raw.ancho },
+              dimensionOriginal: { alto: raw.alto, ancho: raw.ancho },
               extension: raw.extension,
             };
 

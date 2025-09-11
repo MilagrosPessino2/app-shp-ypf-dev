@@ -10,8 +10,8 @@ import { GraphListService } from '../datosSharepoint/listaConGraph';
 type UseNovedadesArgs = {
   context: WebPartContext;
   filename?: string;
-  listName?: string; // default: ListaPruebaGraph
-  /** Si pasás esto, se usa tal cual y NO se consultará Graph */
+  listName?: string; // por defecto "Word"
+  /** Si pasás esto, NO consulta Graph y usa este input tal cual */
   inputOverride?: Omit<BuildDocInput, 'maxItemsPerSection'>;
 };
 
@@ -30,7 +30,10 @@ export function useNovedades({
       let input: BuildDocInput;
 
       if (inputOverride) {
-        input = { ...inputOverride, confidentialityLabel: inputOverride.confidentialityLabel ?? 'YPF-Confidencial' };
+        input = {
+          ...inputOverride,
+          confidentialityLabel: inputOverride.confidentialityLabel ?? 'YPF-Confidencial',
+        };
       } else {
         const svc = new GraphListService(context);
         await svc.init();
@@ -41,6 +44,9 @@ export function useNovedades({
           novedad: data.novedad ?? [],
           confidentialityLabel: 'YPF-Confidencial',
         };
+
+        // // DEBUG si querés ver el input:
+        // console.log('INPUT al doc:', JSON.stringify(input, null, 2));
       }
 
       const doc = await createNovedadesDoc(input);
