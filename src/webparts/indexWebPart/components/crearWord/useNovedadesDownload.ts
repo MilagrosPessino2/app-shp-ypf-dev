@@ -32,7 +32,6 @@ export function useNovedades({
       if (inputOverride) {
         input = { ...inputOverride, confidentialityLabel: inputOverride.confidentialityLabel ?? 'YPF-Confidencial' };
       } else {
-        // ← Traigo de Graph en el momento del click
         const svc = new GraphListService(context);
         await svc.init();
         const data = await svc.fetchNovedades(listName);

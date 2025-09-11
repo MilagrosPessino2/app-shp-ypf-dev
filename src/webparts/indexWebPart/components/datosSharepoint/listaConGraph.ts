@@ -1,14 +1,17 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { MSGraphClientV3 } from '@microsoft/sp-http';
 
-/** ← nombres EXACTOS de tus columnas */
+/** Columnas visibles en tu lista (display name) y sus posibles internos */
 export type ListaPruebaFields = {
-  SectorGeneral?: string;    // Texto
-  AreaNovedad?: string;      // Texto
-  TituloNovedad?: string;    // Texto
-  DetalleNovedad?: string;   // Texto enriquecido (HTML)
-  Resumen?: string;          // (opcional)
-  // "Datos adjuntos" se obtiene vía driveItem/children (Graph), no aparece en fields
+  // OJO: en muchas listas "SectorGeneral" es realmente el campo interno Title renombrado
+  SectorGeneral?: string;   // si es una columna nueva con ese internal name
+  AreaNovedad?: string;
+  TituloNovedad?: string;   // si es una columna nueva con ese internal name
+  DetalleNovedad?: string;
+  Resumen?: string;
+
+  // SIEMPRE agregamos Title por si "SectorGeneral" o "TituloNovedad" son solo renombres del Title
+  Title?: string;
 };
 
 export type NovedadItem = {
@@ -18,7 +21,7 @@ export type NovedadItem = {
 };
 
 export type NovedadesData = {
-  area: string; // SectorGeneral más frecuente
+  area: string; // SectorGeneral (o Title) más frecuente
   novedad: Array<{ areaNovedad: string; items: NovedadItem[] }>;
 };
 
@@ -33,24 +36,24 @@ export class GraphListService {
     this.siteId = this.buildGraphSiteId();
   }
 
-  /** Trae y mapea: agrupa por AreaNovedad y setea SectorGeneral (más frecuente) */
+  /** Trae y mapea: agrupa por AreaNovedad y setea SectorGeneral (o Title) más frecuente */
   public async fetchNovedades(listDisplayName: string): Promise<NovedadesData> {
-    const items = await this.getItems(listDisplayName);
     const list  = await this.getList(listDisplayName);
+    const items = await this.getItems(list);
 
-    // Group by AreaNovedad
     const groups = new Map<string, NovedadItem[]>();
 
     for (const it of items) {
       const f = (it.fields || {}) as ListaPruebaFields;
 
-      const areaNovedad = (f.AreaNovedad || 'General').trim();
-      const titulo = (f.TituloNovedad || '(Sin título)').trim();
-      const detalleHtml = f.DetalleNovedad || '';
+      // Fallbacks robustos contra renombres:
+      const areaNovedad      = (f.AreaNovedad ?? 'General').trim();
+      const titulo           = (f.TituloNovedad ?? f.Title ?? '(Sin título)').trim();
+      const detalleHtml      = f.DetalleNovedad ?? '';
 
       const urls: string[] = [];
 
-      // Adjuntos del ítem (carpeta del drive del item)
+      // Adjuntos por Graph (carpeta del drive del item)
       if (list?.id) {
         try {
           const resp = await this.client
@@ -63,7 +66,7 @@ export class GraphListService {
             const dl = ch['@microsoft.graph.downloadUrl'];
             if (dl) urls.push(dl);
           }
-        } catch {/* sin adjuntos o sin permisos */}
+        } catch { /* sin adjuntos o sin permisos */ }
       }
 
       const arr = groups.get(areaNovedad) ?? [];
@@ -75,19 +78,15 @@ export class GraphListService {
       groups.set(areaNovedad, arr);
     }
 
-    // SectorGeneral = más frecuente en la lista
+    // SectorGeneral = valor más frecuente entre (SectorGeneral || Title)
     const sectorGeneral = this.pickMostFrequent(
-      items.map((it) => (it.fields?.SectorGeneral ?? 'General').trim())
+      items.map((it) => ((it.fields?.SectorGeneral ?? it.fields?.Title) ?? 'General').trim())
     );
 
-    // Armar secciones [{ areaNovedad, items }]
     const novedad = Array.from(groups.entries()).map(([areaNovedad, items]) => ({
       areaNovedad,
       items,
-    }));
-
-    // Ordenar por nombre de área (opcional)
-    novedad.sort((a, b) => a.areaNovedad.localeCompare(b.areaNovedad));
+    })).sort((a, b) => a.areaNovedad.localeCompare(b.areaNovedad));
 
     return { area: sectorGeneral, novedad };
   }
@@ -110,17 +109,21 @@ export class GraphListService {
     return match ? { id: match.id, name: match.displayName || match.name } : null;
   }
 
-  private async getItems(
-    listDisplayName: string
-  ): Promise<Array<{ id: string; fields: ListaPruebaFields }>> {
-    const list = await this.getList(listDisplayName);
+  private async getItems(list: { id: string } | null): Promise<Array<{ id: string; fields: ListaPruebaFields }>> {
     if (!list?.id) return [];
+    // Seleccionamos explícitamente los campos (incluyendo Title por los renombres)
     const res = await this.client
       .api(`/sites/${this.siteId}/lists/${list.id}/items`)
-      .expand('fields')
+      .expand("fields($select=Title,SectorGeneral,AreaNovedad,TituloNovedad,DetalleNovedad,Resumen)")
       .top(200)
       .get();
-    return (res?.value ?? []) as any[];
+
+    const value = (res?.value ?? []) as any[];
+
+    // Debug opcional para ver qué keys devuelve tu lista (si seguís con dudas)
+    // console.log('Ejemplo fields keys:', value[0]?.fields && Object.keys(value[0].fields));
+
+    return value;
   }
 
   private pickMostFrequent(values: string[]): string {
