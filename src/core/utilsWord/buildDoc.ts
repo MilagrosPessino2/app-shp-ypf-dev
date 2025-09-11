@@ -1,128 +1,158 @@
-import { Document, Paragraph } from 'docx';
+import { Document, Paragraph, Table } from 'docx';
 import {
-  buildFooter,
-  buildHeader,
-  makeareaBox,
-  areaHeading,
-  noveltyDetail,   // devuelve Paragraph[]
-  noveltyTitle,
-  thinSeparator,
+    buildFooter,
+    buildHeader,
+    makeareaBox,
+    areaHeading,
+    noveltyDetail,
+    noveltyTitle,
+    thinSeparator,
 } from './blocks';
 import { imageGallery, type ImgEscalada } from './blocks/imageGallery';
-import type { SeccionArea, BuildDocInput } from './types';
 import {
-  loadImageOriginal,
-  insertarOrdenado,
-  comparaImagenesPorAltoAncho,
-  type ImagenOrdenada,
+    loadImageOriginal,
+    insertarOrdenado,
+    comparaImagenesPorAltoAncho,
+    type ImagenOrdenada,
 } from './images';
+import type { BuildDocInput } from './types';
 
-async function buildSectionsAsync(
-  sections: SeccionArea[],
-  pageContentWidthPx: number,
-  minImageWidthPx = 0
-): Promise<Paragraph[]> {
-  const out: Paragraph[] = [];
+const PAGE_CONTENT_WIDTH = 500;
+const MIN_IMAGE_WIDTH = 0;
 
-  for (const { areaNovedad, items } of sections) {
-    out.push(areaHeading(areaNovedad));
+export async function createNovedadesDoc(
+    input: BuildDocInput
+): Promise<Document> {
+    const out: (Paragraph | Table)[] = []; // ✅ Acepta Paragraphs y Tables (como makeareaBox)
 
-    for (const { tituloNovedad, detalleNovedad, imagenesNovedad } of items) {
-      out.push(noveltyTitle(tituloNovedad));
+    // 1. Agrupar por sectorGeneral
+    const sectorMap = new Map<string, BuildDocInput['novedades']>();
 
-      // Detalle con HTML controlado 
-      const detalleParas = noveltyDetail(detalleNovedad);
-      out.push(...detalleParas);
-
-      //  Imágenes 
-      if (imagenesNovedad && imagenesNovedad.length > 0) {
-        const wrappersOrdenados: ImagenOrdenada[] = [];
-
-        for (const url of imagenesNovedad) {
-          try {
-            const raw = await loadImageOriginal(url);
-            if (!raw) continue;
-
-            const relacion = raw.ancho > 0 ? raw.alto / raw.ancho : 0;
-            if (!(relacion > 0 && isFinite(relacion))) continue;
-
-            const naturalMax = Math.min(
-              Math.max(1, raw.ancho),
-              Math.max(1, pageContentWidthPx)
-            );
-
-            const width =
-              minImageWidthPx > 0
-                ? Math.min(naturalMax, Math.max(1, minImageWidthPx))
-                : naturalMax;
-
-            const height = Math.max(1, Math.round(width * relacion));
-
-            const wrapper: ImagenOrdenada = {
-              data: raw.data,
-              dimension: { alto: height, ancho: width },
-              dimensionOriginal: { alto: raw.alto, ancho: raw.ancho },
-              extension: raw.extension,
-            };
-
-            insertarOrdenado(wrappersOrdenados, wrapper, comparaImagenesPorAltoAncho);
-          } catch {
-            /* ignorar imagen fallida */
-          }
+    for (const nov of input.novedades) {
+        if (!sectorMap.has(nov.sectorGeneral)) {
+            sectorMap.set(nov.sectorGeneral, []);
         }
-
-        if (wrappersOrdenados.length > 0) {
-          const escaladas: ImgEscalada[] = wrappersOrdenados.map((w) => ({
-            data: w.data,
-            width: w.dimension.ancho,
-            height: w.dimension.alto,
-            extension: w.extension,
-          }));
-
-          const galleryParas = imageGallery(escaladas);
-         
-          out.push(...galleryParas);
-        }
-      }
-
-      out.push(thinSeparator());
+        sectorMap.get(nov.sectorGeneral)!.push(nov);
     }
 
-    out.push(new Paragraph({ spacing: { after: 50 } }));
-  }
+    // 2. Procesar por grupo
+    const sectoresOrdenados = Array.from(sectorMap.entries()).sort(([a], [b]) =>
+        a.localeCompare(b)
+    );
 
-  return out;
-}
+    for (const [sector, novedades] of sectoresOrdenados) {
+        // Mostrar el area box UNA VEZ
+        out.push(makeareaBox(sector));
 
-/* Builder principal (async) */
-export async function createNovedadesDoc(input: BuildDocInput): Promise<Document> {
-  const { sectorGeneral, novedad } = input;
+        // Ordenar novedades por areaNovedad, luego por titulo
+        const ordenadas = [...novedades].sort((a, b) => {
+            const areaCmp = a.areaNovedad.localeCompare(b.areaNovedad);
+            if (areaCmp !== 0) return areaCmp;
+            return a.tituloNovedad.localeCompare(b.tituloNovedad);
+        });
 
-  const PAGE_CONTENT_WIDTH = 500; // ajustá si cambian márgenes
-  const MIN_IMAGE_WIDTH = 0;
+        for (const nov of ordenadas) {
+            // Título del área
+            out.push(areaHeading(nov.areaNovedad));
 
-  const sectionChildren = [
-    makeareaBox(sectorGeneral),
-    ...(await buildSectionsAsync(novedad, PAGE_CONTENT_WIDTH, MIN_IMAGE_WIDTH)),
-  ];
+            // Título de la novedad
+            out.push(noveltyTitle(nov.tituloNovedad));
 
-  return new Document({
-    styles: {
-      default: {
-        document: {
-          run: { font: 'Calibri' },
-          paragraph: { spacing: { before: 80, after: 80 } },
+            // Detalle enriquecido
+            const detalleParas = noveltyDetail(nov.detalleNovedad);
+            out.push(...detalleParas);
+
+            // Imágenes
+            if (nov.imagenesNovedad && nov.imagenesNovedad.length > 0) {
+                const wrappersOrdenados: ImagenOrdenada[] = [];
+
+                for (const url of nov.imagenesNovedad) {
+                    try {
+                        const raw = await loadImageOriginal(url);
+                        if (!raw) continue;
+
+                        const relacion =
+                            raw.ancho > 0 ? raw.alto / raw.ancho : 0;
+                        if (!(relacion > 0 && isFinite(relacion))) continue;
+
+                        const naturalMax = Math.min(
+                            Math.max(1, raw.ancho),
+                            Math.max(1, PAGE_CONTENT_WIDTH)
+                        );
+
+                        const width =
+                            MIN_IMAGE_WIDTH > 0
+                                ? Math.min(
+                                      naturalMax,
+                                      Math.max(1, MIN_IMAGE_WIDTH)
+                                  )
+                                : naturalMax;
+
+                        const height = Math.max(
+                            1,
+                            Math.round(width * relacion)
+                        );
+
+                        const wrapper: ImagenOrdenada = {
+                            data: raw.data,
+                            dimension: { alto: height, ancho: width },
+                            dimensionOriginal: {
+                                alto: raw.alto,
+                                ancho: raw.ancho,
+                            },
+                            extension: raw.extension,
+                        };
+
+                        insertarOrdenado(
+                            wrappersOrdenados,
+                            wrapper,
+                            comparaImagenesPorAltoAncho
+                        );
+                    } catch {
+                        // ignorar imagen fallida
+                    }
+                }
+
+                if (wrappersOrdenados.length > 0) {
+                    const escaladas: ImgEscalada[] = wrappersOrdenados.map(
+                        (w) => ({
+                            data: w.data,
+                            width: w.dimension.ancho,
+                            height: w.dimension.alto,
+                            extension: w.extension,
+                        })
+                    );
+
+                    const galleryParas = imageGallery(escaladas);
+                    out.push(...galleryParas);
+                }
+            }
+
+            // Separador entre novedades
+            out.push(thinSeparator());
+            out.push(new Paragraph({ spacing: { after: 50 } }));
+        }
+    }
+
+    return new Document({
+        styles: {
+            default: {
+                document: {
+                    run: { font: 'Calibri' },
+                    paragraph: { spacing: { before: 80, after: 80 } },
+                },
+            },
         },
-      },
-    },
-    sections: [
-      {
-        headers: { default: buildHeader('YPF-Confidencial') },
-        footers: { default: buildFooter('YPF-Confidencial') },
-        children: sectionChildren,
-      },
-    ],
-  });
+        sections: [
+            {
+                headers: {
+                    default: buildHeader(input.confidentialityLabel ?? ''),
+                },
+                footers: {
+                    default: buildFooter(input.confidentialityLabel ?? ''),
+                },
+                children: out,
+            },
+        ],
+    });
 }
-
-export default createNovedadesDoc;
