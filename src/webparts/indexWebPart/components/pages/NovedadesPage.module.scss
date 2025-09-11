@@ -1,0 +1,99 @@
+$primary: #0155ed;
+$bg: #f6f8fb;
+$text: #1a1f36;
+body {
+  font-family: 'Lato', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 300; // light
+  color: #1a1f36;
+}
+
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: linear-gradient(180deg, rgba(1,85,237,0.06), rgba(1,85,237,0.02));
+}
+
+.header {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.headerInner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  height:25px;
+  width: auto;
+  object-fit: contain;
+}
+
+.appName {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: .2px;
+  color: $primary;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main {
+  max-width: 980px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(1, 85, 237, 0.08);
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 28px;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 400; // Regular en vez de Bold
+  color: #1a1f36;
+  text-align: center;
+}
+
+
+.subtitle {
+  margin: 0 0 20px 0;
+  color: #52607a;
+  text-align: center;
+}
+
+.ctaRow {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.footer {
+  color: #6b7280;
+  font-size: 0.9rem;
+  padding: 16px 20px;
+  text-align: center;
+  background: transparent;
+}
