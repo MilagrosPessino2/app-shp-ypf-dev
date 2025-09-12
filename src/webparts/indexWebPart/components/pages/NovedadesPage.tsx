@@ -12,7 +12,7 @@ const NovedadesPages: React.FC<Props> = ({ context }) => {
                 <div className={styles.headerInner}>
                     <div className={styles.brand}>
                         <img
-                            src='img/Logo_de_YPF.png'
+                             src={require('../../../../public/Logo_de_YPF.png')}
                             alt='YPF'
                             className={styles.logo}
                         />
