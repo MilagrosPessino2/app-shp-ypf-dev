@@ -1,6 +1,6 @@
 export const Roles = {
-    ADMINISTRADORES: "ADMINISTRADORES",
-    OTRO: "OTRO"
+    ADMINISTRADORES: 'ADMINISTRADORES',
+    OTRO: 'OTRO',
 };
 
 export const DOCX_FILENAME = 'Novedades_YPF.docx';
@@ -13,7 +13,7 @@ export const COLOR_TOKENS = {
     textoDetalleNovedad: '141414', // antes greyText
     separadorLinea: '000000', // antes thinLine
     textoNegro: '000000', // antes blackText
-}as const;
+} as const;
 
 export const TAMANIO = {
     tamanioTittle: 22,
@@ -21,4 +21,5 @@ export const TAMANIO = {
     tamanioTextoFooterHeader: 20,
     tamanioBorderArea: 8,
     tamanioTextoArea: 30,
-}
+    tamanioTittleArea: 26,
+};

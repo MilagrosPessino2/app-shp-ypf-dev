@@ -10,7 +10,7 @@ export function areaHeading(text: string): Paragraph {
                 text: text.toUpperCase(),
                 bold: true,
                 color: COLOR_TOKENS.textoNegro,
-                size: TAMANIO.tamanioTittle,
+                size: TAMANIO.tamanioTittleArea,
             }),
         ],
         spacing: { before: 200, after: 100 },
