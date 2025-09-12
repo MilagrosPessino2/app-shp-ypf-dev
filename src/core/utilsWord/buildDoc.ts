@@ -20,6 +20,8 @@ import { htmlToParagraphsControlled } from './htmlToDoc';
 
 const PAGE_CONTENT_WIDTH = 500;
 const MIN_IMAGE_WIDTH = 0;
+// Espacio entre el último párrafo del detalle y la PRIMER imagen (twips)
+const SPACE_BETWEEN_DETAIL_AND_IMAGES = 240; // ≈ 12pt
 
 /** Normaliza: case-insensitive + accent-insensitive + trim + colapsa espacios */
 function normKey(input?: string): string {
@@ -37,6 +39,9 @@ function cmpBase(a: string, b: string): number {
 
 type Novedad = BuildDocInput['novedades'][number];
 type WithResumen = { resumenHtml?: string };
+function getResumenHtml(n: Novedad): string | undefined {
+    return (n as unknown as WithResumen).resumenHtml;
+}
 
 export async function createNovedadesDoc(
     input: BuildDocInput
@@ -57,8 +62,10 @@ export async function createNovedadesDoc(
         sectores.get(k)!.items.push(n);
     }
 
-    // Ordenar sectores por label normalizado
-    const sectorKeys = Array.from(sectores.keys()).sort((ka, kb) =>
+    // Obtener y ordenar claves de sectores SIN for..of
+    const sectorKeys: string[] = [];
+    sectores.forEach((_v, key) => sectorKeys.push(key));
+    sectorKeys.sort((ka, kb) =>
         cmpBase(sectores.get(ka)!.label, sectores.get(kb)!.label)
     );
 
@@ -66,7 +73,7 @@ export async function createNovedadesDoc(
         const skey = sectorKeys[s];
         const sectorGroup = sectores.get(skey)!;
 
-        // Contenedor del sector (mostrar la primera etiqueta encontrada)
+        // Contenedor del sector UNA vez
         out.push(makeareaBox(sectorGroup.label));
 
         // 2) Agrupar por Área (CI + AI)
@@ -85,8 +92,10 @@ export async function createNovedadesDoc(
             areas.get(ak)!.items.push(n);
         }
 
-        // Ordenar áreas por label normalizado
-        const areaKeys = Array.from(areas.keys()).sort((ka, kb) =>
+        // Obtener y ordenar claves de áreas
+        const areaKeys: string[] = [];
+        areas.forEach((_v, key) => areaKeys.push(key));
+        areaKeys.sort((ka, kb) =>
             cmpBase(areas.get(ka)!.label, areas.get(kb)!.label)
         );
 
@@ -110,14 +119,14 @@ export async function createNovedadesDoc(
                 out.push(noveltyTitle(nov.tituloNovedad));
 
                 // Resumen HTML (si viene)
-                const resumenHtml = (nov as unknown as WithResumen).resumenHtml;
+                const resumenHtml = getResumenHtml(nov);
                 if (typeof resumenHtml === 'string' && resumenHtml.trim()) {
                     const resumenParas =
                         htmlToParagraphsControlled(resumenHtml);
                     out.push(...resumenParas);
                 }
 
-                // Detalle enriquecido
+                // Detalle enriquecido (con espacio entre párrafos)
                 const detalle = noveltyDetail(nov.detalleNovedad);
                 for (let d = 0; d < detalle.length; d++) out.push(detalle[d]);
 
@@ -183,7 +192,12 @@ export async function createNovedadesDoc(
                                 extension: it.extension,
                             };
                         }
-                        const gallery = imageGallery(escaladas);
+
+                        // 👇 Espacio ANTES de la primera imagen
+                        const gallery = imageGallery(escaladas, {
+                            topGapTwips: SPACE_BETWEEN_DETAIL_AND_IMAGES,
+                            // afterEach: 200, // opcional, ya default en imageGallery
+                        });
                         for (let g = 0; g < gallery.length; g++)
                             out.push(gallery[g]);
                     }
@@ -203,7 +217,7 @@ export async function createNovedadesDoc(
             default: {
                 document: {
                     run: { font: 'Calibri' },
-                    // ✅ En docx@9.5.1 el spacing por defecto va dentro de "document"
+                    // En docx@9.5.1 el spacing por defecto va dentro de "document"
                     paragraph: { spacing: { before: 0, after: 0 } },
                 },
             },
