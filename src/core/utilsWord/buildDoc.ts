@@ -16,6 +16,7 @@ import {
     type ImagenOrdenada,
 } from './images';
 import type { BuildDocInput } from './types';
+import { htmlToParagraphsControlled } from './htmlToDoc';
 
 const PAGE_CONTENT_WIDTH = 500;
 const MIN_IMAGE_WIDTH = 0;
@@ -76,6 +77,12 @@ export async function createNovedadesDoc(
 
                 // Título de la novedad
                 out.push(noveltyTitle(nov.tituloNovedad));
+                
+                // resumen HTML
+                if (nov.resumenHtml && nov.resumenHtml.trim()) {
+                const resumenParas = htmlToParagraphsControlled(nov.resumenHtml);
+                out.push(...resumenParas, new Paragraph({ spacing: { after: 80 } })); 
+                }
 
                 // Detalle enriquecido
                 const detalle = noveltyDetail(nov.detalleNovedad);

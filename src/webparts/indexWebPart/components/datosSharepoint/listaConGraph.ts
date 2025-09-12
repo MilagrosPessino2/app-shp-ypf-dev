@@ -13,6 +13,7 @@ export type ListaPruebaFields = {
 export type NovedadItem = {
     sectorGeneral: string;
     tituloNovedad: string;
+    resumenHtml: string;
     detalleNovedad: string;
     imagenesNovedad: string[];
 };
@@ -126,6 +127,7 @@ export class GraphListService {
             arr.push({
                 tituloNovedad: titulo,
                 detalleNovedad: detalleHtml,
+                resumenHtml: f.Resumen ?? '',
                 imagenesNovedad: Array.from(new Set(urls)),
                 sectorGeneral: (f.SectorGeneral ?? f.Title ?? 'General').trim(),
             });

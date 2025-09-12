@@ -55,6 +55,7 @@ export function useNovedades({
                             novedades.push({
                                 sectorGeneral: item.sectorGeneral, // ✅ Usa el valor real
                                 areaNovedad,
+                                resumenHtml: item.resumenHtml,
                                 tituloNovedad: item.tituloNovedad,
                                 detalleNovedad: item.detalleNovedad,
                                 imagenesNovedad: item.imagenesNovedad,

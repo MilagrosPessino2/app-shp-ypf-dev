@@ -10,12 +10,12 @@ export interface SeccionArea {
 }
 
 /** Entrada para construir el documento de novedades */
-/** Entrada para construir el documento de novedades */
 export interface BuildDocInput {
     novedades: {
         sectorGeneral: string;
         areaNovedad: string;
         tituloNovedad: string;
+        resumenHtml: string;
         detalleNovedad: string;
         imagenesNovedad?: string[];
     }[];
@@ -24,6 +24,7 @@ export interface BuildDocInput {
 export type NovedadItem = {
     sectorGeneral: string;
     tituloNovedad: string;
+    resumenHtml: string;
     detalleNovedad: string;
     imagenesNovedad: string[];
 };
