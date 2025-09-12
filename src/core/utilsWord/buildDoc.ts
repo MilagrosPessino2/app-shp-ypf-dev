@@ -83,9 +83,6 @@ export async function createNovedadesDoc(input: BuildDocInput): Promise<Document
       const akey = areaKeys[a];
       const areaGroup = areas.get(akey)!;
 
-      // (Opcional) aire mínimo antes del título de área para evitar “aplastes”
-      // out.push(spacer(6)); // <- si lo querés, descomentá esta línea
-
       out.push(areaHeading(areaGroup.label));
 
       // 3) Ordenar novedades
@@ -105,11 +102,9 @@ export async function createNovedadesDoc(input: BuildDocInput): Promise<Document
         const detalle = noveltyDetail(nov.detalleNovedad);
         for (const p of detalle) out.push(p);
 
-        // === AJUSTE CLAVE ===
         // Solo agregamos un espacio pequeño ANTES de las imágenes (6 pt),
-        // y NO agregamos espaciado al cierre de la novedad.
         if (nov.imagenesNovedad?.length) {
-          out.push(spacer(6)); // 6pt basta, no “deforma”
+          out.push(spacer(5)); 
         }
 
         if (nov.imagenesNovedad && nov.imagenesNovedad.length) {
@@ -154,10 +149,7 @@ export async function createNovedadesDoc(input: BuildDocInput): Promise<Document
             for (const g of gallery) out.push(g);
           }
         }
-
-        // === IMPORTANTE ===
         // Quitamos el spacer al final de la novedad para no apilar márgenes.
-        // (si querés 4–6pt al final, podés poner: out.push(spacer(4)); )
       }
 
       // Separador solo entre áreas
@@ -171,7 +163,7 @@ export async function createNovedadesDoc(input: BuildDocInput): Promise<Document
       default: {
         document: {
           run: { font: 'Calibri' },
-          paragraph: { spacing: { before: 0, after: 0 } }, // mantenemos 0 por defecto
+          paragraph: { spacing: { before: 0, after: 0 } },
         },
       },
     },
