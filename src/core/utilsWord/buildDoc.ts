@@ -21,67 +21,100 @@ import { htmlToParagraphsControlled } from './htmlToDoc';
 const PAGE_CONTENT_WIDTH = 500;
 const MIN_IMAGE_WIDTH = 0;
 
+/** Normaliza: case-insensitive + accent-insensitive + trim + colapsa espacios */
+function normKey(input?: string): string {
+    const s = (input || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const nfd = s.normalize ? s.normalize('NFD') : s;
+    return nfd.replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Comparación usando la misma normalización */
+function cmpBase(a: string, b: string): number {
+    const A = normKey(a);
+    const B = normKey(b);
+    return A < B ? -1 : A > B ? 1 : 0;
+}
+
+type Novedad = BuildDocInput['novedades'][number];
+type WithResumen = { resumenHtml?: string };
+
 export async function createNovedadesDoc(
     input: BuildDocInput
 ): Promise<Document> {
     const out: (Paragraph | Table)[] = [];
 
-    // 1) Agrupar por Sector General
-    const sectores = new Map<string, BuildDocInput['novedades']>();
+    // 1) Agrupar por Sector General (CI + AI)
+    const sectores = new Map<string, { label: string; items: Novedad[] }>();
     for (let i = 0; i < input.novedades.length; i++) {
         const n = input.novedades[i];
-        if (!sectores.has(n.sectorGeneral)) sectores.set(n.sectorGeneral, []);
-        sectores.get(n.sectorGeneral)!.push(n);
+        const k = normKey(n.sectorGeneral);
+        if (!k) continue;
+        if (!sectores.has(k))
+            sectores.set(k, {
+                label: (n.sectorGeneral || '').trim(),
+                items: [],
+            });
+        sectores.get(k)!.items.push(n);
     }
 
-    // Ordenar sectores por nombre SIN iteradores: usar keys()
-    const sectoresKeys = Array.from(sectores.keys()).sort((a, b) =>
-        a.localeCompare(b)
+    // Ordenar sectores por label normalizado
+    const sectorKeys = Array.from(sectores.keys()).sort((ka, kb) =>
+        cmpBase(sectores.get(ka)!.label, sectores.get(kb)!.label)
     );
 
-    for (let s = 0; s < sectoresKeys.length; s++) {
-        const sector = sectoresKeys[s];
-        const novedadesSector = sectores.get(sector)!;
+    for (let s = 0; s < sectorKeys.length; s++) {
+        const skey = sectorKeys[s];
+        const sectorGroup = sectores.get(skey)!;
 
-        // Mostrar el contenedor del sector UNA sola vez
-        out.push(makeareaBox(sector));
+        // Contenedor del sector (mostrar la primera etiqueta encontrada)
+        out.push(makeareaBox(sectorGroup.label));
 
-        // 2) Dentro del sector, agrupar por Área de novedad
-        const areas = new Map<string, BuildDocInput['novedades']>();
+        // 2) Agrupar por Área (CI + AI)
+        const areas = new Map<string, { label: string; items: Novedad[] }>();
+        const novedadesSector = sectorGroup.items;
+
         for (let j = 0; j < novedadesSector.length; j++) {
             const n = novedadesSector[j];
-            if (!areas.has(n.areaNovedad)) areas.set(n.areaNovedad, []);
-            areas.get(n.areaNovedad)!.push(n);
+            const ak = normKey(n.areaNovedad);
+            if (!ak) continue;
+            if (!areas.has(ak))
+                areas.set(ak, {
+                    label: (n.areaNovedad || '').trim(),
+                    items: [],
+                });
+            areas.get(ak)!.items.push(n);
         }
 
-        // Ordenar áreas alfabéticamente SIN iteradores
-        const areasKeys = Array.from(areas.keys()).sort((a, b) =>
-            a.localeCompare(b)
+        // Ordenar áreas por label normalizado
+        const areaKeys = Array.from(areas.keys()).sort((ka, kb) =>
+            cmpBase(areas.get(ka)!.label, areas.get(kb)!.label)
         );
 
-        for (let a = 0; a < areasKeys.length; a++) {
-            const area = areasKeys[a];
-            const novedadesArea = areas.get(area)!;
+        for (let a = 0; a < areaKeys.length; a++) {
+            const akey = areaKeys[a];
+            const areaGroup = areas.get(akey)!;
 
-            // Mostrar el título del Área UNA vez
-            out.push(areaHeading(area));
+            // Título del Área UNA vez
+            out.push(areaHeading(areaGroup.label));
 
-            // Ordenar novedades dentro del área (por título)
-            const ordenadas = novedadesArea
+            // 3) Ordenar novedades dentro del área (por título, CI + AI)
+            const ordenadas = areaGroup.items
                 .slice()
-                .sort((x, y) => x.tituloNovedad.localeCompare(y.tituloNovedad));
+                .sort((x, y) => cmpBase(x.tituloNovedad, y.tituloNovedad));
 
-            // 3) Render de cada novedad dentro del área (sin separador entre novedades)
+            // 4) Render de cada novedad
             for (let k = 0; k < ordenadas.length; k++) {
                 const nov = ordenadas[k];
 
-                // Título de la novedad
+                // Título
                 out.push(noveltyTitle(nov.tituloNovedad));
-                
-                // resumen HTML
-                if (nov.resumenHtml && nov.resumenHtml.trim()) {
-                const resumenParas = htmlToParagraphsControlled(nov.resumenHtml);
-                out.push(...resumenParas, new Paragraph({ spacing: { after: 80 } })); 
+
+                // Resumen HTML (si viene)
+                const resumenHtml = (nov as unknown as WithResumen).resumenHtml;
+                if (typeof resumenHtml === 'string' && resumenHtml.trim()) {
+                    const resumenParas =
+                        htmlToParagraphsControlled(resumenHtml);
+                    out.push(...resumenParas);
                 }
 
                 // Detalle enriquecido
@@ -103,9 +136,8 @@ export async function createNovedadesDoc(
 
                             const naturalMax = Math.min(
                                 Math.max(1, raw.ancho),
-                                Math.max(1, PAGE_CONTENT_WIDTH)
+                                PAGE_CONTENT_WIDTH
                             );
-
                             const width =
                                 MIN_IMAGE_WIDTH > 0
                                     ? Math.min(
@@ -113,7 +145,6 @@ export async function createNovedadesDoc(
                                           Math.max(1, MIN_IMAGE_WIDTH)
                                       )
                                     : naturalMax;
-
                             const height = Math.max(
                                 1,
                                 Math.round(width * relacion)
@@ -159,11 +190,10 @@ export async function createNovedadesDoc(
                 }
             }
 
-            // 4) Separador SOLO entre Áreas (no entre novedades)
-            const esUltimaArea = a === areasKeys.length - 1;
+            // 5) Separador SOLO entre Áreas
+            const esUltimaArea = a === areaKeys.length - 1;
             if (!esUltimaArea) {
                 out.push(thinSeparator());
-                // out.push(new Paragraph({ spacing: { after: 50 } }));
             }
         }
     }
@@ -173,6 +203,7 @@ export async function createNovedadesDoc(
             default: {
                 document: {
                     run: { font: 'Calibri' },
+                    // ✅ En docx@9.5.1 el spacing por defecto va dentro de "document"
                     paragraph: { spacing: { before: 0, after: 0 } },
                 },
             },
