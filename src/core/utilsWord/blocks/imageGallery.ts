@@ -8,7 +8,7 @@ export type ImgEscalada = {
     extension?: 'image/png' | 'image/jpeg';
 };
 
-// 👇 Tipo = unión de los valores del enum AlignmentType
+// Tipo = unión de los valores del enum AlignmentType
 type AlignmentValue = (typeof AlignmentType)[keyof typeof AlignmentType];
 
 export type GalleryOptions = {

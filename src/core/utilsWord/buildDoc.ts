@@ -112,7 +112,7 @@ export async function createNovedadesDoc(
 
                 const resumenHtml = getResumenHtml(nov);
                 if (typeof resumenHtml === 'string' && resumenHtml.trim()) {
-                    // 👇 ahora se usan bloques (Paragraph | Table)
+                    // ahora se usan bloques (Paragraph | Table)
                     out.push(...htmlToBlocksControlled(resumenHtml));
                 }
 

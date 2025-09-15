@@ -10,7 +10,7 @@ import {
 } from 'docx';
 import { COLOR_TOKENS, TAMANIO } from '../utils/Constants';
 
-// 👉 Tipo del VALOR del enum AlignmentType (no la clave)
+// Tipo del VALOR del enum AlignmentType (no la clave)
 type AlignValue = (typeof AlignmentType)[keyof typeof AlignmentType];
 
 /* -----------------------------------------------------------
@@ -31,6 +31,7 @@ export function htmlToBlocksControlled(html: string): Array<Paragraph | Table> {
     const safe = (html ?? '').trim();
     if (!safe) return [defaultParagraph('')];
 
+    // Parseo HTML
     let doc: Document | undefined;
     try {
         const parser = new DOMParser();
@@ -38,12 +39,14 @@ export function htmlToBlocksControlled(html: string): Array<Paragraph | Table> {
     } catch {
         return [defaultParagraph(stripTags(safe))];
     }
-    if (!doc?.body) return [defaultParagraph(stripTags(safe))];
 
+    if (!doc?.body) return [defaultParagraph(stripTags(safe))];
+    // Recorremos el body
     for (const node of Array.from(doc.body.childNodes)) {
         const parts = elementToBlocks(node);
         if (parts.length) blocks.push(...parts);
     }
+    // Si no quedó nada, devolvemos un párrafo vacío
     return blocks.length ? blocks : [defaultParagraph('')];
 }
 
@@ -59,7 +62,7 @@ function elementToBlocks(node: Node): Array<Paragraph | Table> {
     const tag = el.tagName.toLowerCase();
 
     if (tag === 'table') {
-        // ⬇️ ahora recibimos (Table | Paragraph)[]
+        // ahora recibimos (Table | Paragraph)[]
         const tBlocks = buildDocxTableFromHtml(el as HTMLTableElement);
         return tBlocks.length
             ? tBlocks
@@ -239,7 +242,7 @@ function buildDocxTableFromHtml(
         },
     });
 
-    // 👇 Agregamos un spacer de 6pt (120 twips) DESPUÉS de la tabla
+    // Agregamos un spacer de 6pt (120 twips) DESPUÉS de la tabla
     const spacerAfterTable = new Paragraph({ spacing: { after: 120 } });
 
     return [table, spacerAfterTable];
