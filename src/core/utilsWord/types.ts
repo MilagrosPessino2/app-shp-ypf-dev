@@ -1,4 +1,3 @@
-/** Item dentro de un área de novedad */
 export interface ItemNovedad {
     tituloNovedad: string;
     detalleNovedad: string;

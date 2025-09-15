@@ -10,7 +10,7 @@ import {
 } from './blocks';
 import { imageGallery, type ImgEscalada } from './blocks/imageGallery';
 import {
-    loadImageOriginal,
+    descargarYConvertirImagen,
     insertarOrdenado,
     comparaImagenesPorAltoAncho,
     type ImagenOrdenada,
@@ -22,7 +22,7 @@ const PAGE_CONTENT_WIDTH = 500;
 const MIN_IMAGE_WIDTH = 0;
 
 /** Párrafo vacío con espacio después (pt → twips) */
-function spacer(pt: number): Paragraph {
+function espacio(pt: number): Paragraph {
     return new Paragraph({ spacing: { after: pt * 20 } });
 }
 
@@ -112,23 +112,22 @@ export async function createNovedadesDoc(
 
                 const resumenHtml = getResumenHtml(nov);
                 if (typeof resumenHtml === 'string' && resumenHtml.trim()) {
-                    // ahora se usan bloques (Paragraph | Table)
                     out.push(...htmlToBlocksControlled(resumenHtml));
                 }
 
                 const detalle = noveltyDetail(nov.detalleNovedad);
                 for (const p of detalle) out.push(p);
 
-                // Solo agregamos un espacio pequeño ANTES de las imágenes (6 pt),
+                // espacio pequeño ANTES de las imágenes (5 pt),
                 if (nov.imagenesNovedad?.length) {
-                    out.push(spacer(5));
+                    out.push(espacio(5));
                 }
 
                 if (nov.imagenesNovedad && nov.imagenesNovedad.length) {
                     const wrappers: ImagenOrdenada[] = [];
                     for (const url of nov.imagenesNovedad) {
                         try {
-                            const raw = await loadImageOriginal(url);
+                            const raw = await descargarYConvertirImagen(url);
                             if (!raw) continue;
 
                             const relacion =
@@ -180,7 +179,6 @@ export async function createNovedadesDoc(
                         for (const g of gallery) out.push(g);
                     }
                 }
-                // Quitamos el spacer al final de la novedad para no apilar márgenes.
             }
 
             // Separador solo entre áreas

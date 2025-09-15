@@ -1,21 +1,21 @@
 export type DimensionHW = { alto: number; ancho: number };
-
 export type ImagenOrdenada = {
     data: ArrayBuffer; // bytes (PNG seguro)
     dimension: DimensionHW; // dimensiones REAJUSTADAS (px)
-    dimensionOriginal: { alto: number; ancho: number }; // dimensiones originales (px)
+    dimensionOriginal: { alto: number; ancho: number };
     extension: 'image/png';
 };
 
-// Firma PNG: 89 50 4E 47 0D 0A 1A 0A
-function looksLikePng(u8: Uint8Array): boolean {
+/* Verifica si los 8 bytes parecen un PNG (firma) */
+function esFormatoPng(u8: Uint8Array): boolean {
     if (u8.byteLength < 8) return false;
-    const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    for (let i = 0; i < sig.length; i++) if (u8[i] !== sig[i]) return false;
+    const firmaArchivo = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    for (let i = 0; i < firmaArchivo.length; i++) 
+        if (u8[i] !== firmaArchivo[i]) return false;
     return true;
 }
 
-async function readNaturalSizeFromBlob(
+async function obtenerDimensionesOriginalesDeImagen(
     blob: Blob
 ): Promise<{ w: number; h: number }> {
     const url = URL.createObjectURL(blob);
@@ -35,15 +35,15 @@ async function readNaturalSizeFromBlob(
     }
 }
 
-/** Re-encodifica a PNG (clamp 8000px) para evitar incompatibilidades en Word */
-async function transcodeToPNG(
+/* Re-encodifica a PNG (clamp 8000px) */
+async function convertirAFormatoPng(
     blob: Blob
 ): Promise<{ out: Blob; w: number; h: number }> {
-    const { w, h } = await readNaturalSizeFromBlob(blob);
+    const { w, h } = await obtenerDimensionesOriginalesDeImagen(blob);
     if (!w || !h) throw new Error('Dimensiones inválidas');
 
     const MAX_W = 8000,
-        MAX_H = 8000;
+          MAX_H = 8000;
     const scale = Math.min(1, MAX_W / w, MAX_H / h);
     const W = Math.max(1, Math.floor(w * scale));
     const H = Math.max(1, Math.floor(h * scale));
@@ -76,14 +76,14 @@ async function transcodeToPNG(
     }
 }
 
-/** Descarga + convierte a PNG seguro; devuelve bytes + dimensiones */
-export async function loadImageOriginal(url: string): Promise<
+/* Descarga + convierte a PNG seguro; devuelve bytes + dimensiones */
+export async function descargarYConvertirImagen(url: string): Promise<
     | {
-          data: ArrayBuffer;
-          alto: number;
-          ancho: number;
-          extension: 'image/png';
-      }
+        data: ArrayBuffer;
+        alto: number;
+        ancho: number;
+        extension: 'image/png';
+    }
     | undefined
 > {
     // Incluir credenciales por si la URL requiere cookies (mismo origen/SharePoint)
@@ -97,7 +97,7 @@ export async function loadImageOriginal(url: string): Promise<
         W = 0,
         H = 0;
     try {
-        const tr = await transcodeToPNG(blob);
+        const tr = await convertirAFormatoPng(blob);
         png = tr.out;
         W = tr.w;
         H = tr.h;
@@ -107,12 +107,11 @@ export async function loadImageOriginal(url: string): Promise<
 
     const ab = await png.arrayBuffer();
     const u8 = new Uint8Array(ab);
-    if (u8.byteLength === 0 || !looksLikePng(u8)) return undefined;
+    if (u8.byteLength === 0 || !esFormatoPng(u8)) return undefined;
 
     return { data: ab, alto: H, ancho: W, extension: 'image/png' };
 }
 
-/* Comparador por alto ASC → ancho ASC */
 export function comparaImagenesPorAltoAncho(
     a: ImagenOrdenada,
     b: ImagenOrdenada
@@ -122,7 +121,6 @@ export function comparaImagenesPorAltoAncho(
     return a.dimension.ancho - b.dimension.ancho;
 }
 
-/* Inserta manteniendo el orden dado por comparar */
 export function insertarOrdenado<T>(
     coleccion: T[],
     aInsertar: T,

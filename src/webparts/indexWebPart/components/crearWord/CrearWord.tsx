@@ -9,7 +9,7 @@ type Props = { context: WebPartContext };
 const CrearWord: React.FC<Props> = ({ context }) => {
   const { handleDownload, loading } = useNovedades({
     context,
-    listName: 'Word', // <-- cambiá si tu lista se llama distinto
+    listName: 'Word',
   });
 
   return (

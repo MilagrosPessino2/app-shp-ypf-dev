@@ -1,4 +1,3 @@
-// src/components/utilsWord/downloadDoc.ts
 import { Document, Packer } from 'docx';
 import { saveAs } from 'file-saver';
 import { DOCX_FILENAME } from '../utils/Constants';

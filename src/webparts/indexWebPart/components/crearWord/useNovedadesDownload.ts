@@ -53,7 +53,7 @@ export function useNovedades({
                     items.forEach(
                         (item: NovedadItem & { sectorGeneral: string }) => {
                             novedades.push({
-                                sectorGeneral: item.sectorGeneral, // ✅ Usa el valor real
+                                sectorGeneral: item.sectorGeneral, 
                                 areaNovedad,
                                 resumenHtml: item.resumenHtml,
                                 tituloNovedad: item.tituloNovedad,
