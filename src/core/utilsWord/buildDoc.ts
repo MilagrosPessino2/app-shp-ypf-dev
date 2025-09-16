@@ -21,7 +21,7 @@ import { htmlToBlocksControlled } from './htmlToDoc';
 const PAGE_CONTENT_WIDTH = 500;
 const MIN_IMAGE_WIDTH = 0;
 
-/** Párrafo vacío con espacio después (pt → twips) */
+/* Párrafo vacío con espacio después (pt → twips) */
 function espacio(pt: number): Paragraph {
     return new Paragraph({ spacing: { after: pt * 20 } });
 }
@@ -48,7 +48,7 @@ export async function createNovedadesDoc(
 ): Promise<Document> {
     const out: (Paragraph | Table)[] = [];
 
-    // 1) Agrupar por Sector
+    //  Agrupar por Sector
     const sectores = new Map<string, { label: string; items: Novedad[] }>();
     for (let i = 0; i < input.novedades.length; i++) {
         const n = input.novedades[i];
@@ -74,7 +74,7 @@ export async function createNovedadesDoc(
 
         out.push(makeareaBox(sectorGroup.label));
 
-        // 2) Agrupar por Área
+        // Agrupar por Área
         const areas = new Map<string, { label: string; items: Novedad[] }>();
         for (const n of sectorGroup.items) {
             const ak = normKey(n.areaNovedad);
@@ -99,12 +99,12 @@ export async function createNovedadesDoc(
 
             out.push(areaHeading(areaGroup.label));
 
-            // 3) Ordenar novedades
+            // Ordenar novedades
             const ordenadas = areaGroup.items
                 .slice()
                 .sort((x, y) => cmpBase(x.tituloNovedad, y.tituloNovedad));
 
-            // 4) Render de cada novedad
+            // Render de cada novedad
             for (let k = 0; k < ordenadas.length; k++) {
                 const nov = ordenadas[k];
 

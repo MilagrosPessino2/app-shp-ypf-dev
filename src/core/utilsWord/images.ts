@@ -51,8 +51,8 @@ async function convertirAFormatoPng(
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas 2D no disponible');
+    const contextoCanva = canvas.getContext('2d');
+    if (!contextoCanva) throw new Error('Canvas 2D no disponible');
 
     const url = URL.createObjectURL(blob);
     try {
@@ -62,7 +62,7 @@ async function convertirAFormatoPng(
             i.onerror = reject;
             i.src = url;
         });
-        ctx.drawImage(img, 0, 0, W, H);
+        contextoCanva.drawImage(img, 0, 0, W, H);
 
         const out = await new Promise<Blob>((resolve, reject) =>
             canvas.toBlob(
@@ -87,10 +87,10 @@ export async function descargarYConvertirImagen(url: string): Promise<
     | undefined
 > {
     // Incluir credenciales por si la URL requiere cookies (mismo origen/SharePoint)
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) return undefined;
+    const respuestaImagen = await fetch(url, { credentials: 'include' });
+    if (!respuestaImagen.ok) return undefined;
 
-    const blob = await res.blob();
+    const blob = await respuestaImagen.blob();
     if (!blob.type?.startsWith('image/')) return undefined;
 
     let png: Blob,
@@ -104,12 +104,11 @@ export async function descargarYConvertirImagen(url: string): Promise<
     } catch {
         return undefined;
     }
-
-    const ab = await png.arrayBuffer();
-    const u8 = new Uint8Array(ab);
+    const arrayBytesImagen = await png.arrayBuffer();
+    const u8 = new Uint8Array(arrayBytesImagen);
     if (u8.byteLength === 0 || !esFormatoPng(u8)) return undefined;
 
-    return { data: ab, alto: H, ancho: W, extension: 'image/png' };
+    return { data: arrayBytesImagen, alto: H, ancho: W, extension: 'image/png' };
 }
 
 export function comparaImagenesPorAltoAncho(
