@@ -27,3 +27,9 @@ export type NovedadItem = {
     detalleNovedad: string;
     imagenesNovedad: string[];
 };
+
+//Tipo mínimo requerido para poder calcular área. 
+export type Dimension = {
+    width: number;
+    height: number;
+};

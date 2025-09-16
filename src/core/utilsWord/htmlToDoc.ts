@@ -9,6 +9,13 @@ import {
     BorderStyle,
 } from 'docx';
 import { COLOR_TOKENS, TAMANIO } from '../utils/Constants';
+import {
+    isInlineTag,
+    inlineTextContent,
+    looksNumericOrMoney,
+    readColor,
+    stripTags,
+} from './htmlUtils';
 
 // Tipo del VALOR del enum AlignmentType (no la clave)
 type AlignValue = (typeof AlignmentType)[keyof typeof AlignmentType];
@@ -334,45 +341,6 @@ function styledRun(
         color: opts.color ?? COLOR_TOKENS.textoDetalleNovedad,
         size: TAMANIO.tamanioTextoDetalleNovedad,
     });
-}
-
-/* ---------- utilitarios ---------- */
-function isInlineTag(tag: string): boolean {
-    return ['span', 'strong', 'b', 'em', 'i', 'u', 'a', 'br'].includes(tag);
-}
-
-function inlineTextContent(el: Element): string {
-    const walker = el.ownerDocument!.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    const parts: string[] = [];
-    let n: Node | null;
-    // eslint-disable-next-line no-cond-assign
-    while ((n = walker.nextNode())) {
-        const t = (n.textContent ?? '').replace(/\s+/g, ' ');
-        if (t) parts.push(t);
-    }
-    return parts.join('').trim();
-}
-
-function looksNumericOrMoney(text: string): boolean {
-    // Normalizamos algunos signos y espacios
-    const s = text
-        .replace(/\u2212/g, '-')
-        .replace(/\s/g, '')
-        .trim();
-    // Acepta: 1.234,56 | 1234.56 | $12.345 | -9.999 | 70,000 | US$99.9 | €1.000,00
-    const money =
-        /^((US\$)|(\$)|(€)|(£))?-?\d{1,3}([.,']\d{3})*([.,]\d+)?$|^-?\d+([.,]\d+)?$/i;
-    return money.test(s);
-}
-
-function readColor(el: HTMLElement): string | undefined {
-    const style = el.getAttribute('style') || '';
-    const m = /color\s*:\s*(#[0-9a-fA-F]{3,8})/i.exec(style);
-    return m ? m[1].replace('#', '').toUpperCase() : undefined;
-}
-
-function stripTags(s: string): string {
-    return s.replace(/<[^>]*>/g, '');
 }
 
 function defaultParagraph(text: string): Paragraph {
